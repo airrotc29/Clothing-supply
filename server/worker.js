@@ -497,6 +497,24 @@ export default {
       return new Response(null, { headers: corsHeaders(env) });
     }
     try {
+      if (url.pathname === '/api/debug-env' && request.method === 'GET') {
+        // 임시 진단용 — 문제 해결 후 반드시 삭제할 것. 시크릿 값 자체는 노출하지 않음.
+        var ghRes = await fetch(githubApiUrl(env, 'README.md') + '?ref=' + (env.DATA_BRANCH || 'main'), { headers: githubHeaders(env) });
+        var ghBody = await ghRes.text();
+        return jsonResponse(env, {
+          GITHUB_OWNER: env.GITHUB_OWNER || null,
+          GITHUB_REPO: env.GITHUB_REPO || null,
+          DATA_BRANCH: env.DATA_BRANCH || null,
+          ALLOWED_ORIGIN: env.ALLOWED_ORIGIN || null,
+          GITHUB_TOKEN_present: !!env.GITHUB_TOKEN,
+          GITHUB_TOKEN_length: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.length : 0,
+          GITHUB_TOKEN_prefix: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.slice(0, 12) : null,
+          GITHUB_TOKEN_suffix: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.slice(-6) : null,
+          SESSION_SECRET_present: !!env.SESSION_SECRET,
+          githubTestStatus: ghRes.status,
+          githubTestBody: ghBody.slice(0, 300),
+        });
+      }
       if (url.pathname === '/api/login' && request.method === 'POST') return await handleLogin(env, request);
       if (url.pathname === '/api/bootstrap-admin' && request.method === 'POST') return await handleBootstrapAdmin(env, request);
       if (url.pathname === '/api/admin/users' && request.method === 'GET') return await handleListUsers(env, request);
