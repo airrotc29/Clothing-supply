@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko-KR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>피복 신청·승인 관리 시스템</title>
+<meta name="description" content="사업소가 피복신청서를 제출하고, 본사가 승인/반려로 결재하며, 승인 건은 지급이력대장에 자동 반영되는 시스템">
+<style>
+*{box-sizing:border-box;}
+body{
+  margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,sans-serif;
+  background:#f5f7fb; color:#16233c; line-height:1.6; word-break:keep-all; overflow-wrap:break-word;
+}
+.page-wrap{max-width:1080px; margin:0 auto; padding:2rem 1.2rem 4rem;}
+h1{font-size:1.7rem; margin:0 0 .3rem;}
+h1, h2, h3, h4{color:#16233c;}
+.site-footer{text-align:center; color:#8b96a8; font-size:.85rem; padding:2.5rem 1rem 1rem;}
+
+.rpt-app{margin-top:1.5rem;}
+.rpt-login-card{max-width:420px;margin:0 auto;}
+.rpt-card{background:#fff;border:1px solid #e3e8f2;border-radius:12px;padding:1.3rem 1.4rem;margin-bottom:1.4rem;box-shadow:0 2px 10px rgba(20,30,60,.04);}
+.rpt-card h3{margin-top:0;}
+.rpt-desc{color:#5a6577;font-size:.92rem;margin:.3rem 0 .8rem;}
+.rpt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem;margin-bottom:.9rem;}
+.rpt-grid label{display:flex;flex-direction:column;gap:.35rem;font-size:.88rem;font-weight:600;color:#33415c;}
+.rpt-span2{grid-column:1/-1;}
+.rpt-grid input[type=text],.rpt-grid input[type=date],.rpt-grid input[type=password],.rpt-grid input[type=number],.rpt-grid select,.rpt-grid textarea{
+  font-weight:400;padding:.5rem .6rem;border:1px solid #cfd7e6;border-radius:7px;font-size:.92rem;font-family:inherit;
+}
+.rpt-grid textarea{width:100%;box-sizing:border-box;text-align:left;resize:vertical;}
+
+.rpt-btn{display:inline-block;padding:.55em 1.1em;border-radius:8px;font-weight:700;font-size:.88rem;cursor:pointer;border:2px solid transparent;text-decoration:none;background:#eee;}
+.rpt-btn--solid{background:#2148b8;color:#fff !important;}
+.rpt-btn--solid:hover{background:#183a99;}
+.rpt-btn--outline{background:#fff;color:#2148b8 !important;border-color:#2148b8;}
+.rpt-btn--outline:hover{background:#eef2fc;}
+.rpt-btn--danger{background:#c0392b;color:#fff !important;}
+.rpt-btn--danger:hover{background:#a3301f;}
+.rpt-btn--danger-outline{background:#fff;color:#c0392b !important;border-color:#c0392b;}
+.rpt-btn--danger-outline:hover{background:#fdeceb;}
+.rpt-file-btn{display:inline-block;padding:.55em 1.1em;border-radius:8px;font-weight:700;font-size:.88rem;background:#fff;color:#2148b8;border:2px solid #2148b8;cursor:pointer;}
+.rpt-file-btn:hover{background:#eef2fc;}
+.rpt-btn--small{padding:.35em .75em;font-size:.8rem;}
+.rpt-btn[disabled]{opacity:.5;cursor:not-allowed;}
+.rpt-toolbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem;}
+.rpt-note{font-size:.85rem;color:#5a6577;margin-left:.6rem;}
+.rpt-warn{color:#c0392b;font-weight:600;font-size:.88rem;}
+
+.rpt-tabs{display:flex;gap:.4rem;margin-bottom:1.2rem;flex-wrap:wrap;}
+.rpt-tab{padding:.55em 1.1em;border-radius:8px 8px 0 0;font-weight:700;font-size:.9rem;cursor:pointer;background:#e7edfb;color:#33415c;border:none;}
+.rpt-tab.active{background:#2148b8;color:#fff;}
+.rpt-tabpanel{display:none;}
+.rpt-tabpanel.active{display:block;}
+
+.rpt-table-wrap{overflow-x:auto;}
+.rpt-table{width:100%;border-collapse:collapse;font-size:.86rem;}
+.rpt-table th,.rpt-table td{border:1px solid #e3e8f2;padding:.5rem .55rem;text-align:left;}
+.rpt-table th{background:#f3f6fd;white-space:nowrap;}
+.rpt-table tfoot td{background:#f3f6fd;font-weight:700;}
+.rpt-table input[type=text],.rpt-table input[type=number],.rpt-table select{width:100%;border:1px solid #cfd7e6;border-radius:5px;padding:.3em .4em;font-size:.85rem;font-family:inherit;}
+.rpt-table input[readonly]{background:#f3f6fd;color:#33415c;font-weight:700;}
+
+.rpt-stat-grid{display:flex;flex-wrap:wrap;gap:1rem;margin:.8rem 0 1.2rem;}
+.rpt-stat{border:1px solid #e3e8f2;border-radius:10px;padding:.8rem 1.2rem;min-width:150px;background:#fafbfd;}
+.rpt-stat .label{font-size:.82rem;color:#5a6577;}
+.rpt-stat .value{font-size:1.35rem;font-weight:800;color:#16233c;margin-top:.15rem;}
+
+.rpt-badge{display:inline-block;padding:.15em .6em;border-radius:999px;font-size:.75rem;font-weight:700;}
+.rpt-badge--pending{background:#e8a33d;color:#fff;}
+.rpt-badge--approved{background:#1f9d55;color:#fff;}
+.rpt-badge--rejected{background:#c0392b;color:#fff;}
+
+.rpt-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,20,35,.5);z-index:9998;padding:2rem 1rem;overflow:auto;}
+.rpt-modal-backdrop.open{display:flex;align-items:flex-start;justify-content:center;}
+.rpt-modal{background:#fff;border-radius:12px;max-width:900px;width:100%;padding:1.4rem 1.6rem;margin:auto;}
+.rpt-modal-close{float:right;}
+
+.report-print-area{display:none;}
+body.report-preview-open{overflow:hidden;}
+body.report-preview-open .report-print-area{
+  display:block;position:fixed;inset:0;background:#fff;overflow:auto;z-index:9999;padding:1.2rem;
+}
+.report-toolbar{display:flex;gap:.6rem;justify-content:flex-end;position:sticky;top:-1.2rem;margin:-1.2rem -1.2rem 1rem;padding:1rem 1.2rem;background:#fff;border-bottom:1px solid #e3e8f2;}
+@media print{
+  .report-toolbar{display:none !important;}
+  body.printing-report *{visibility:hidden;}
+  body.printing-report .report-print-area,body.printing-report .report-print-area *{visibility:visible;}
+  body.printing-report .report-print-area{display:block !important;position:absolute;left:0;top:0;width:100%;}
+}
+.report-page{padding:1rem 0;font-family:inherit;color:#16233c;}
+.report-page h1{font-size:1.4rem;border-bottom:3px solid #16233c;padding-bottom:.4rem;text-align:center;}
+.report-meta{color:#5a6577;font-size:.9rem;margin-bottom:1rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.3rem;}
+.report-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:.6rem 0 1.2rem;}
+.report-table th,.report-table td{border:1px solid #999;padding:.4rem .5rem;text-align:center;}
+.report-table th{background:#eef1f7;}
+.report-table tfoot td{background:#eef1f7;font-weight:700;}
+.report-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+.rpt-table--sticky-first td:first-child,.rpt-table--sticky-first th:first-child{position:sticky;left:0;background:#fff;z-index:1;}
+.rpt-table--sticky-first th:first-child{background:#f3f6fd;}
+
+/* ================= 스마트폰 세로보기 최적화 ================= */
+@media (max-width: 640px){
+  .page-wrap{padding:1.1rem .7rem 3rem;}
+  h1{font-size:1.3rem;}
+  .rpt-desc{font-size:.86rem;}
+  .rpt-card{padding:1rem;}
+
+  .rpt-btn,.rpt-file-btn{padding:.7em 1em;font-size:.92rem;}
+  .rpt-toolbar--stack-mobile{gap:.5rem;}
+  .rpt-toolbar--stack-mobile > .rpt-btn,.rpt-toolbar--stack-mobile > .rpt-file-btn{flex:1 1 auto;text-align:center;}
+  #btnAddRow{width:100%;}
+
+  .rpt-tabs{gap:.3rem;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -.7rem 1rem;padding:0 .7rem 2px;}
+  .rpt-tab{flex:0 0 auto;padding:.6em .9em;font-size:.85rem;white-space:nowrap;}
+
+  .rpt-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;}
+  .rpt-stat{min-width:0;padding:.7rem .9rem;}
+  .rpt-stat .value{font-size:1.15rem;}
+
+  .rpt-modal-backdrop{padding:0;}
+  .rpt-modal{border-radius:0;min-height:100%;padding:1rem;}
+
+  /* 신청서 작성 표: 표 형태 대신 항목별 카드로 쌓아 보여줌 */
+  #rowsTable, #rowsTable thead, #rowsTable tbody, #rowsTable tfoot, #rowsTable tr, #rowsTable td{display:block;width:100%;}
+  #rowsTable{border:none;}
+  #rowsTable thead{display:none;}
+  #rowsTable tbody tr{border:1px solid #cfd7e6;border-radius:10px;padding:.8rem;margin-bottom:.9rem;background:#fafbfd;}
+  #rowsTable tfoot tr{border:1px solid #cfd7e6;border-radius:10px;padding:.8rem;background:#eef2fc;}
+  #rowsTable td{border:none;padding:.4rem 0;}
+  #rowsTable td[data-label]:not([data-label=""])::before{content:attr(data-label);display:block;font-size:.78rem;font-weight:700;color:#5a6577;margin-bottom:.2rem;}
+  #rowsTable td:last-child{padding-top:.3rem;}
+  #rowsTable td:last-child .rpt-btn{width:100%;}
+
+  /* 그 외 표(통계/이력/지급이력대장 등)는 좌우 스크롤 유지, 살짝 더 촘촘하게 */
+  .rpt-table{font-size:.8rem;}
+  .rpt-table th,.rpt-table td{padding:.4rem .45rem;}
+}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+<h1>피복 신청·승인 관리 시스템</h1>
+<p class="rpt-desc">사업소는 피복신청서 서식 그대로 신청서를 작성해 본사로 제출합니다. 본사는 신청서를 검토해 승인/반려로 결재하며, 승인된 신청은 지급이력대장에 자동으로 반영됩니다.</p>
+
+<div id="loginScreen" class="rpt-app">
+  <section class="rpt-card rpt-login-card">
+    <h3>로그인</h3>
+    <div class="rpt-grid">
+      <label>아이디<input type="text" id="loginId" autocomplete="username"></label>
+      <label>비밀번호<input type="password" id="loginPw" autocomplete="current-password"></label>
+    </div>
+    <button type="button" id="btnLogin" class="rpt-btn rpt-btn--solid">로그인</button>
+    <span id="loginError" class="rpt-warn"></span>
+    <p class="rpt-desc">계정은 본사 관리자가 발급합니다. 아이디/비밀번호를 모르면 본사에 문의하세요.</p>
+  </section>
+
+  <section class="rpt-card rpt-login-card">
+    <details>
+      <summary style="cursor:pointer;font-weight:700;">최초 설정 — 본사 관리자 계정이 아직 없다면</summary>
+      <p class="rpt-desc" style="margin-top:.8rem;">이 시스템을 처음 배포한 경우, 아래에서 본사 관리자 계정을 딱 한 번만 만들 수 있습니다. 이미 계정이 있다면 이 단계는 필요 없습니다.</p>
+      <div class="rpt-grid">
+        <label>관리자 아이디<input type="text" id="bootstrapId" autocomplete="off" value="admin"></label>
+        <label>관리자 비밀번호<input type="password" id="bootstrapPw" autocomplete="new-password"></label>
+      </div>
+      <button type="button" id="btnBootstrapAdmin" class="rpt-btn rpt-btn--outline">관리자 계정 생성</button>
+      <span id="bootstrapNote" class="rpt-note"></span>
+    </details>
+  </section>
+</div>
+
+<!-- ================= 관리자(본사) 화면 ================= -->
+<div id="adminPanel" class="rpt-app" style="display:none;">
+  <div class="rpt-toolbar" style="justify-content:space-between;">
+    <span class="rpt-desc" style="margin:0;font-weight:700;">본사 관리자 화면</span>
+    <button type="button" id="btnLogoutAdmin" class="rpt-btn rpt-btn--outline">로그아웃</button>
+  </div>
+
+  <div class="rpt-tabs">
+    <button type="button" class="rpt-tab active" data-tab="adminApprovals">결재 대기함</button>
+    <button type="button" class="rpt-tab" data-tab="adminStats">통계 대시보드</button>
+    <button type="button" class="rpt-tab" data-tab="adminUsers">사업소 계정관리</button>
+  </div>
+
+  <div id="adminApprovals" class="rpt-tabpanel active">
+    <section class="rpt-card">
+      <h3>피복신청서 결재</h3>
+      <div class="rpt-toolbar">
+        <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;font-weight:600;color:#33415c;">상태
+          <select id="approvalStatusFilter">
+            <option value="pending" selected>대기중</option>
+            <option value="approved">승인됨</option>
+            <option value="rejected">반려됨</option>
+            <option value="">전체</option>
+          </select>
+        </label>
+      </div>
+      <div class="rpt-table-wrap">
+        <table class="rpt-table rpt-table--sticky-first" id="approvalsTable">
+          <thead><tr><th>사업소명</th><th>신청일</th><th>신청건수</th><th>합계금액</th><th>제출일시</th><th>상태</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div id="adminStats" class="rpt-tabpanel">
+    <section class="rpt-card">
+      <h3>전체 현황</h3>
+      <div class="rpt-stat-grid" id="statCards"></div>
+      <div class="rpt-table-wrap">
+        <table class="rpt-table rpt-table--sticky-first" id="statsTable">
+          <thead><tr><th>사업소명</th><th>대기중</th><th>승인</th><th>반려</th><th>승인 금액</th><th>최근 신청일시</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="rpt-note" id="statsNote"></p>
+    </section>
+  </div>
+
+  <div id="adminUsers" class="rpt-tabpanel">
+    <section class="rpt-card">
+      <h3>사업소 계정 발급</h3>
+      <div class="rpt-grid">
+        <label>사업소명<input type="text" id="newSiteName" placeholder="예) SH드림타워"></label>
+        <label>아이디<input type="text" id="newUserId"></label>
+        <label>비밀번호<input type="password" id="newUserPw"></label>
+      </div>
+      <button type="button" id="btnCreateUser" class="rpt-btn rpt-btn--solid">계정 생성</button>
+      <span id="createUserNote" class="rpt-note"></span>
+      <div class="rpt-table-wrap" style="margin-top:1.2rem;">
+        <table class="rpt-table rpt-table--sticky-first" id="usersTable">
+          <thead><tr><th>사업소명</th><th>아이디</th><th>생성일</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ================= 사업소 화면 ================= -->
+<div id="siteApp" class="rpt-app" style="display:none;">
+  <div class="rpt-toolbar" style="justify-content:space-between;">
+    <span id="currentSiteName" class="rpt-desc" style="margin:0;font-weight:700;"></span>
+    <button type="button" id="btnLogout" class="rpt-btn rpt-btn--outline">로그아웃</button>
+  </div>
+
+  <div class="rpt-tabs">
+    <button type="button" class="rpt-tab active" data-tab="siteRequestForm">신청서 작성</button>
+    <button type="button" class="rpt-tab" data-tab="siteRequestHistory">제출 이력</button>
+    <button type="button" class="rpt-tab" data-tab="siteLedger">지급이력대장</button>
+  </div>
+
+  <div id="siteRequestForm" class="rpt-tabpanel active">
+    <section class="rpt-card">
+      <h3>피 복 신 청 서</h3>
+      <div class="rpt-grid">
+        <label>신청일<input type="date" id="requestDate"></label>
+        <label>사업소 주소<input type="text" id="siteAddress" placeholder="사업소 주소"></label>
+        <label>연락처<input type="text" id="siteContact" placeholder="연락처"></label>
+      </div>
+      <div class="rpt-toolbar rpt-toolbar--stack-mobile">
+        <button type="button" id="btnDownloadTemplate" class="rpt-btn rpt-btn--outline">📥 엑셀 서식 다운로드</button>
+        <label class="rpt-file-btn">📤 엑셀 업로드<input type="file" id="excelUploadInput" accept=".xlsx,.xls" style="display:none;"></label>
+        <span id="excelImportNote" class="rpt-note"></span>
+      </div>
+      <div class="rpt-table-wrap">
+        <table class="rpt-table" id="rowsTable">
+          <thead><tr><th style="width:90px;">성명</th><th style="width:90px;">직급</th><th>품 목</th><th style="width:90px;">규 격</th><th style="width:70px;">수 량</th><th style="width:110px;">단 가</th><th style="width:120px;">금액(VAT별도)</th><th style="width:120px;">지급사유</th><th style="width:40px;"></th></tr></thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr><td colspan="6" data-label="">합 계</td><td id="sumAmount" data-label="합계 금액">0</td><td colspan="2" data-label=""></td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <datalist id="itemSuggestions">
+        <option value="동복잠바"><option value="춘추잠바"><option value="티셔츠(긴팔)"><option value="티셔츠(반팔)"><option value="조끼">
+      </datalist>
+      <button type="button" id="btnAddRow" class="rpt-btn rpt-btn--outline" style="margin-top:.8rem;">+ 품목 추가</button>
+
+      <button type="button" id="btnSubmitReport" class="rpt-btn rpt-btn--solid" style="margin-top:1.2rem;">본사로 제출하기</button>
+      <span id="submitReportNote" class="rpt-note"></span>
+    </section>
+  </div>
+
+  <div id="siteRequestHistory" class="rpt-tabpanel">
+    <section class="rpt-card">
+      <h3>제출 이력</h3>
+      <div class="rpt-table-wrap">
+        <table class="rpt-table rpt-table--sticky-first" id="historyTable">
+          <thead><tr><th>신청일</th><th>제출일시</th><th>건수</th><th>합계금액</th><th>상태</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div id="siteLedger" class="rpt-tabpanel">
+    <section class="rpt-card">
+      <h3>개인별 피복 지급 이력</h3>
+      <p class="rpt-desc">승인된 신청서 기준으로 자동 집계됩니다. 셀의 날짜는 해당 직원이 해당 품목을 가장 최근에 지급받은 날짜입니다.</p>
+      <div class="rpt-table-wrap">
+        <table class="rpt-table rpt-table--sticky-first" id="siteLedgerTable"></table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="reportModalBackdrop" class="rpt-modal-backdrop">
+  <div class="rpt-modal">
+    <button type="button" id="btnCloseModal" class="rpt-btn rpt-btn--outline rpt-modal-close">닫기</button>
+    <div id="reportModalBody"></div>
+  </div>
+</div>
+
+<div id="reportPrintArea" class="report-print-area"></div>
+
+<hr>
+<p class="site-footer">© 본사 관리 시스템</p>
+</div>
+
+<script src="assets/js/xlsx.core.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+function $(id){ return document.getElementById(id); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtNum(n){ return Math.round(Number(n)||0).toLocaleString('ko-KR'); }
+function fmtDateTime(iso){
+  if(!iso) return '';
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+var STATUS_LABEL = { pending:'대기중', approved:'승인', rejected:'반려' };
+function statusBadge(status){
+  return '<span class="rpt-badge rpt-badge--'+status+'">'+(STATUS_LABEL[status]||status)+'</span>';
+}
+
+/* ---------- 백엔드(Cloudflare Worker) 연결 ---------- */
+/* server/README.md 안내대로 Worker를 배포한 뒤, 아래 주소를 실제 Worker URL로 바꾸세요. */
+var API_BASE = 'https://clothing-supply-api.airrotc29.workers.dev';
+var SESSION_KEY = 'clothingSupplySession';
+
+function getSession(){
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e){ return null; }
+}
+function setSession(session){ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+async function apiFetch(path, opts){
+  opts = opts || {};
+  var session = getSession();
+  var headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(session && session.token) headers['Authorization'] = 'Bearer ' + session.token;
+  var res = await fetch(API_BASE + path, {
+    method: opts.method || 'GET',
+    headers: headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  var data = await res.json().catch(function(){ return {}; });
+  if(!res.ok) throw new Error(data.error || ('요청 실패 (' + res.status + ')'));
+  return data;
+}
+
+/* ---------- 탭 전환 ---------- */
+function initTabs(scopeEl){
+  scopeEl.querySelectorAll('.rpt-tab').forEach(function(tabBtn){
+    tabBtn.addEventListener('click', function(){
+      var tabs = tabBtn.parentElement.querySelectorAll('.rpt-tab');
+      tabs.forEach(function(t){ t.classList.remove('active'); });
+      tabBtn.classList.add('active');
+      var panels = scopeEl.querySelectorAll('.rpt-tabpanel');
+      panels.forEach(function(p){ p.classList.remove('active'); });
+      var target = $(tabBtn.dataset.tab);
+      if(target) target.classList.add('active');
+      if(tabBtn.dataset.tab === 'adminApprovals') refreshApprovals();
+      if(tabBtn.dataset.tab === 'adminStats') refreshStats();
+      if(tabBtn.dataset.tab === 'siteRequestHistory') refreshHistory();
+      if(tabBtn.dataset.tab === 'siteLedger') refreshSiteLedger();
+    });
+  });
+}
+
+/* ================= 사업소: 신청서 작성 ================= */
+var ROW_FIELDS = ['name','position','item','spec','qty','unitPrice','amount','reason'];
+
+function addRow(row){
+  row = row || {};
+  var tbody = document.querySelector('#rowsTable tbody');
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td data-label="성명"><input type="text" data-f="name" value="'+escapeHtml(row.name||'')+'"></td>' +
+    '<td data-label="직급"><input type="text" data-f="position" value="'+escapeHtml(row.position||'')+'"></td>' +
+    '<td data-label="품목"><input type="text" data-f="item" list="itemSuggestions" value="'+escapeHtml(row.item||'')+'"></td>' +
+    '<td data-label="규격"><input type="text" data-f="spec" value="'+escapeHtml(row.spec||'')+'"></td>' +
+    '<td data-label="수량"><input type="number" data-f="qty" value="'+(row.qty||1)+'" min="0"></td>' +
+    '<td data-label="단가"><input type="number" data-f="unitPrice" value="'+(row.unitPrice||'')+'" min="0"></td>' +
+    '<td data-label="금액(VAT별도, 자동계산)"><input type="number" data-f="amount" value="'+(((Number(row.qty)||0)*(Number(row.unitPrice)||0)))+'" readonly tabindex="-1"></td>' +
+    '<td data-label="지급사유"><select data-f="reason">' +
+      '<option value="신규"'+(row.reason==='신규'?' selected':'')+'>신규</option>' +
+      '<option value="교체"'+(row.reason==='교체'?' selected':'')+'>교체</option>' +
+    '</select></td>' +
+    '<td data-label=""><button type="button" class="rpt-btn rpt-btn--danger-outline rpt-btn--small act-remove-row">삭제</button></td>';
+  tbody.appendChild(tr);
+}
+
+function readRows(){
+  var rows = [];
+  document.querySelectorAll('#rowsTable tbody tr').forEach(function(tr){
+    var row = {};
+    ROW_FIELDS.forEach(function(f){
+      var input = tr.querySelector('[data-f="'+f+'"]');
+      row[f] = input ? input.value : '';
+    });
+    if(row.name || row.item) rows.push(row);
+  });
+  return rows;
+}
+
+function recalcTotals(){
+  document.querySelectorAll('#rowsTable tbody tr').forEach(function(tr){
+    var qtyInput = tr.querySelector('[data-f="qty"]');
+    var priceInput = tr.querySelector('[data-f="unitPrice"]');
+    var amountInput = tr.querySelector('[data-f="amount"]');
+    amountInput.value = (Number(qtyInput.value)||0) * (Number(priceInput.value)||0);
+  });
+  var rows = readRows();
+  var amount = 0;
+  rows.forEach(function(r){ amount += Number(r.amount)||0; });
+  $('sumAmount').textContent = fmtNum(amount);
+}
+
+/* ================= 엑셀 서식 다운로드 / 대량 업로드 ================= */
+var TEMPLATE_HEADERS = ['성명','직급','품목','규격','수량','단가','지급사유(신규/교체)'];
+var IMPORT_CANDIDATES = {
+  name: ['성명','이름'],
+  position: ['직급','직위'],
+  item: ['품목'],
+  spec: ['규격'],
+  qty: ['수량'],
+  unitPrice: ['단가'],
+  reason: ['지급사유','사유'],
+};
+
+function downloadTemplate(){
+  var sample = ['김두옥','소장','동복잠바','L',1,85000,'신규'];
+  var ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, sample]);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '피복신청서');
+  XLSX.writeFile(wb, '피복신청서_서식.xlsx');
+}
+
+function findKey(sampleRow, candidates){
+  return Object.keys(sampleRow).find(function(k){
+    var norm = String(k).replace(/\s/g,'');
+    return candidates.some(function(c){ return norm.indexOf(c.replace(/\s/g,'')) !== -1; });
+  });
+}
+
+// 엑셀에 제목 줄이 열 제목 위에 있는 경우가 많아, 후보 키워드가 가장 많이 매칭되는 줄을 열 제목 줄로 판단한다
+function findHeaderRowIndex(aoa){
+  var allCandidates = [];
+  Object.keys(IMPORT_CANDIDATES).forEach(function(key){ allCandidates = allCandidates.concat(IMPORT_CANDIDATES[key]); });
+  var bestIdx = 0, bestScore = 0;
+  var scanLimit = Math.min(aoa.length, 15);
+  for(var i = 0; i < scanLimit; i++){
+    var score = 0;
+    (aoa[i] || []).forEach(function(cell){
+      var norm = String(cell==null?'':cell).replace(/\s/g,'');
+      if(!norm) return;
+      if(allCandidates.some(function(c){ return norm.indexOf(c.replace(/\s/g,'')) !== -1; })) score++;
+    });
+    if(score > bestScore){ bestScore = score; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function aoaToRows(aoa, headerIdx){
+  var headerRow = aoa[headerIdx] || [];
+  var headers = headerRow.map(function(h, idx){ return String(h==null?'':h).trim() || ('열'+(idx+1)); });
+  var rows = aoa.slice(headerIdx+1).filter(function(r){
+    return (r||[]).some(function(c){ return String(c==null?'':c).trim() !== ''; });
+  }).map(function(r){
+    var obj = {};
+    headers.forEach(function(h, idx){ obj[h] = (r[idx] !== undefined && r[idx] !== null) ? r[idx] : ''; });
+    return obj;
+  });
+  return { headers: headers, rows: rows };
+}
+
+async function handleExcelUpload(file){
+  var buf = await file.arrayBuffer();
+  var workbook = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:true});
+  var sheet = workbook.Sheets[workbook.SheetNames[0]];
+  var aoa = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+  if(!aoa.length){ alert('엑셀에서 표 형태의 데이터를 찾지 못했습니다.'); return; }
+  var headerIdx = findHeaderRowIndex(aoa);
+  var parsed = aoaToRows(aoa, headerIdx);
+  if(!parsed.rows.length){ alert('엑셀에서 표 형태의 데이터를 찾지 못했습니다.'); return; }
+
+  var detected = {};
+  Object.keys(IMPORT_CANDIDATES).forEach(function(key){ detected[key] = findKey(parsed.rows[0], IMPORT_CANDIDATES[key]); });
+  if(!detected.name && !detected.item){
+    alert('성명 또는 품목 열을 찾지 못했습니다. 다운로드한 서식에 맞춰 작성했는지 확인해주세요.');
+    return;
+  }
+
+  var mapped = parsed.rows.map(function(r){
+    var reasonRaw = detected.reason ? String(r[detected.reason]||'').trim() : '';
+    return {
+      name: detected.name ? String(r[detected.name]||'').trim() : '',
+      position: detected.position ? String(r[detected.position]||'').trim() : '',
+      item: detected.item ? String(r[detected.item]||'').trim() : '',
+      spec: detected.spec ? String(r[detected.spec]||'').trim() : '',
+      qty: detected.qty ? String(r[detected.qty]||'').trim() : '1',
+      unitPrice: detected.unitPrice ? String(r[detected.unitPrice]||'').trim() : '',
+      reason: reasonRaw.indexOf('교체') !== -1 ? '교체' : '신규',
+    };
+  }).filter(function(r){ return r.name || r.item; });
+
+  if(!mapped.length){ alert('가져올 수 있는 품목이 없습니다.'); return; }
+  if(!confirm('현재 입력된 표는 모두 지워지고, 엑셀에서 읽은 ' + mapped.length + '건으로 교체됩니다. 계속하시겠습니까?')) return;
+
+  document.querySelector('#rowsTable tbody').innerHTML = '';
+  mapped.forEach(function(row){ addRow(row); });
+  recalcTotals();
+  $('excelImportNote').textContent = mapped.length + '건을 불러왔습니다. 내용을 확인한 뒤 본사로 제출해주세요.';
+  setTimeout(function(){ $('excelImportNote').textContent=''; }, 5000);
+}
+
+function resetReportForm(){
+  document.querySelector('#rowsTable tbody').innerHTML = '';
+  addRow(); addRow(); addRow();
+  $('requestDate').value = todayStr();
+  recalcTotals();
+}
+
+async function submitReport(){
+  var requestDate = $('requestDate').value;
+  if(!requestDate){ $('submitReportNote').textContent = '신청일을 입력하세요.'; return; }
+  var rows = readRows();
+  if(!rows.length){ $('submitReportNote').textContent = '신청 품목을 1건 이상 입력하세요.'; return; }
+  if(!confirm('입력한 내용을 본사로 제출하시겠습니까?')) return;
+  $('btnSubmitReport').disabled = true;
+  try{
+    await apiFetch('/api/site/requests', { method:'POST', body:{
+      requestDate: requestDate, rows: rows, siteAddress: $('siteAddress').value, contact: $('siteContact').value
+    }});
+    $('submitReportNote').textContent = '본사에 제출되었습니다.';
+    resetReportForm();
+  } catch(e){
+    $('submitReportNote').textContent = '제출 실패: ' + e.message;
+  } finally {
+    $('btnSubmitReport').disabled = false;
+    setTimeout(function(){ $('submitReportNote').textContent=''; }, 4000);
+  }
+}
+
+/* ================= 신청서 인쇄 미리보기 ================= */
+function showReportPreview(html){
+  $('reportPrintArea').innerHTML =
+    '<div class="report-toolbar">' +
+      '<button type="button" id="btnPrintReport" class="rpt-btn rpt-btn--solid">🖨️ 인쇄 / PDF로 저장</button>' +
+      '<button type="button" id="btnCloseReport" class="rpt-btn rpt-btn--outline">닫기</button>' +
+    '</div>' + html;
+  document.body.classList.add('report-preview-open');
+  $('btnPrintReport').addEventListener('click', function(){
+    document.body.classList.add('printing-report');
+    window.print();
+  });
+  $('btnCloseReport').addEventListener('click', closeReportPreview);
+}
+function closeReportPreview(){
+  document.body.classList.remove('report-preview-open');
+  $('reportPrintArea').innerHTML = '';
+}
+window.addEventListener('afterprint', function(){ document.body.classList.remove('printing-report'); });
+
+function buildReportHtml(siteName, req){
+  var rows = req.rows.map(function(r){
+    return '<tr><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.position)+'</td><td>'+escapeHtml(r.item)+'</td>'+
+      '<td>'+escapeHtml(r.spec)+'</td><td>'+fmtNum(r.qty)+'</td><td>'+fmtNum(r.unitPrice)+'</td><td>'+fmtNum(r.amount)+'</td>'+
+      '<td>'+escapeHtml(r.reason)+'</td></tr>';
+  }).join('');
+  return '<div class="report-page">' +
+    '<h1>피 복 신 청 서</h1>' +
+    '<div class="report-meta"><span>사업소: '+escapeHtml(siteName||'')+'</span><span>신청일: '+escapeHtml(req.requestDate||'')+'</span><span>상태: '+(STATUS_LABEL[req.status]||req.status)+'</span></div>' +
+    '<div class="report-table-wrap"><table class="report-table"><thead><tr><th>성명</th><th>직급</th><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>금액(VAT별도)</th><th>지급사유</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody>' +
+    '<tfoot><tr><td colspan="6">합 계</td><td>'+fmtNum(req.totalAmount)+'</td><td></td></tr></tfoot>' +
+    '</table></div>' +
+    '<p>사업소 주소: '+escapeHtml(req.siteAddress||'')+'<br>연락처: '+escapeHtml(req.contact||'')+'</p>' +
+    (req.status === 'rejected' && req.reviewNote ? '<p><strong>반려 사유:</strong><br>'+escapeHtml(req.reviewNote).replace(/\n/g,'<br>')+'</p>' : '') +
+  '</div>';
+}
+
+/* ================= 사업소: 제출 이력 ================= */
+async function refreshHistory(){
+  try{
+    var result = await apiFetch('/api/site/requests');
+    var rows = result.requests.map(function(r){
+      return '<tr><td>'+escapeHtml(r.requestDate)+'</td><td>'+fmtDateTime(r.submittedAt)+'</td>'+
+        '<td>'+r.rows.length+'건</td><td>'+fmtNum(r.totalAmount)+'</td><td>'+statusBadge(r.status)+'</td>'+
+        '<td><button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-history" data-id="'+r.id+'">보기</button></td></tr>';
+    }).join('');
+    document.querySelector('#historyTable tbody').innerHTML = rows || '<tr><td colspan="6">제출한 신청서가 없습니다.</td></tr>';
+    window._siteHistoryRequests = result.requests;
+  } catch(e){
+    document.querySelector('#historyTable tbody').innerHTML = '<tr><td colspan="6">불러오기 실패: '+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+/* ================= 사업소/본사: 지급이력대장 (피벗 테이블) ================= */
+function renderLedgerTable(issues){
+  if(!issues.length) return '<tbody><tr><td>지급 이력이 없습니다.</td></tr></tbody>';
+  var employees = []; // { name, position }
+  var seenEmp = {};
+  var items = [];
+  var seenItem = {};
+  var latest = {}; // key: name+'||'+item -> {date, overall}
+  var overallLatest = {}; // key: name -> date
+
+  issues.forEach(function(is){
+    if(!seenEmp[is.employeeName]){ seenEmp[is.employeeName] = true; employees.push({name:is.employeeName, position:is.position}); }
+    if(!seenItem[is.item]){ seenItem[is.item] = true; items.push(is.item); }
+    var key = is.employeeName + '||' + is.item;
+    if(!latest[key] || is.issueDate > latest[key]) latest[key] = is.issueDate;
+    if(!overallLatest[is.employeeName] || is.issueDate > overallLatest[is.employeeName]) overallLatest[is.employeeName] = is.issueDate;
+  });
+
+  var thead = '<thead><tr><th>지급품목</th>' + employees.map(function(e){ return '<th>'+escapeHtml(e.name)+'</th>'; }).join('') + '</tr>' +
+    '<tr><td>최종지급일</td>' + employees.map(function(e){ return '<td>'+escapeHtml(overallLatest[e.name]||'')+'</td>'; }).join('') + '</tr>' +
+    '<tr><td>직급</td>' + employees.map(function(e){ return '<td>'+escapeHtml(e.position||'')+'</td>'; }).join('') + '</tr>' +
+    '</thead>';
+  var tbody = '<tbody>' + items.map(function(item){
+    return '<tr><td>'+escapeHtml(item)+'</td>' + employees.map(function(e){
+      var v = latest[e.name+'||'+item];
+      return '<td>'+(v ? escapeHtml(v) : '')+'</td>';
+    }).join('') + '</tr>';
+  }).join('') + '</tbody>';
+  return thead + tbody;
+}
+
+async function refreshSiteLedger(){
+  try{
+    var result = await apiFetch('/api/site/ledger');
+    $('siteLedgerTable').innerHTML = renderLedgerTable(result.issues);
+  } catch(e){
+    $('siteLedgerTable').innerHTML = '<tbody><tr><td>불러오기 실패: '+escapeHtml(e.message)+'</td></tr></tbody>';
+  }
+}
+
+/* ================= 관리자: 결재 대기함 ================= */
+async function refreshApprovals(){
+  try{
+    var status = $('approvalStatusFilter').value;
+    var result = await apiFetch('/api/admin/requests' + (status ? ('?status='+encodeURIComponent(status)) : ''));
+    window._adminApprovalRequests = result.requests;
+    var rows = result.requests.map(function(r, idx){
+      return '<tr><td>'+escapeHtml(r.siteName)+'</td><td>'+escapeHtml(r.requestDate)+'</td>'+
+        '<td>'+r.rows.length+'건</td><td>'+fmtNum(r.totalAmount)+'</td><td>'+fmtDateTime(r.submittedAt)+'</td>'+
+        '<td>'+statusBadge(r.status)+'</td>'+
+        '<td><button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-open-approval" data-idx="'+idx+'">상세/결재</button></td></tr>';
+    }).join('');
+    document.querySelector('#approvalsTable tbody').innerHTML = rows || '<tr><td colspan="7">해당하는 신청서가 없습니다.</td></tr>';
+  } catch(e){
+    document.querySelector('#approvalsTable tbody').innerHTML = '<tr><td colspan="7">불러오기 실패: '+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+function openApprovalDetail(req){
+  var rows = req.rows.map(function(r){
+    return '<tr><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.position)+'</td><td>'+escapeHtml(r.item)+'</td>'+
+      '<td>'+escapeHtml(r.spec)+'</td><td>'+fmtNum(r.qty)+'</td><td>'+fmtNum(r.unitPrice)+'</td><td>'+fmtNum(r.amount)+'</td>'+
+      '<td>'+escapeHtml(r.reason)+'</td></tr>';
+  }).join('');
+  var actionHtml = '';
+  if(req.status === 'pending'){
+    actionHtml =
+      '<div class="rpt-grid" style="margin-top:1rem;">' +
+        '<label class="rpt-span2">반려 시 사유(승인에는 선택)<textarea id="reviewNote" rows="2" placeholder="반려하는 경우 사유를 입력하세요"></textarea></label>' +
+      '</div>' +
+      '<div class="rpt-toolbar">' +
+        '<button type="button" id="btnApprove" class="rpt-btn rpt-btn--solid">승인</button>' +
+        '<button type="button" id="btnReject" class="rpt-btn rpt-btn--danger">반려</button>' +
+        '<span id="reviewNoteMsg" class="rpt-note"></span>' +
+      '</div>';
+  } else {
+    actionHtml = '<p class="rpt-note">처리일시: '+fmtDateTime(req.reviewedAt)+' · 처리자: '+escapeHtml(req.reviewedBy||'')+
+      (req.reviewNote ? '<br>사유: '+escapeHtml(req.reviewNote) : '')+'</p>';
+  }
+  openModal(
+    '<h3>'+escapeHtml(req.siteName)+' — 피복신청서 '+statusBadge(req.status)+'</h3>' +
+    '<p class="rpt-desc">신청일 '+escapeHtml(req.requestDate)+' · 제출일시 '+fmtDateTime(req.submittedAt)+' · 사업소 주소 '+escapeHtml(req.siteAddress||'')+' · 연락처 '+escapeHtml(req.contact||'')+'</p>' +
+    '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr><th>성명</th><th>직급</th><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>금액</th><th>지급사유</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody>' +
+    '<tfoot><tr><td colspan="6">합계</td><td>'+fmtNum(req.totalAmount)+'</td><td></td></tr></tfoot></table></div>' +
+    actionHtml
+  );
+  if(req.status === 'pending'){
+    $('btnApprove').addEventListener('click', function(){ reviewRequest(req, 'approved'); });
+    $('btnReject').addEventListener('click', function(){ reviewRequest(req, 'rejected'); });
+  }
+}
+
+async function reviewRequest(req, decision){
+  if(decision === 'rejected' && !$('reviewNote').value.trim()){
+    if(!confirm('반려 사유 없이 반려하시겠습니까?')) return;
+  }
+  if(!confirm((decision === 'approved' ? '승인' : '반려') + '하시겠습니까?')) return;
+  try{
+    await apiFetch('/api/admin/requests/review', { method:'POST', body:{
+      siteId: req.siteId, requestId: req.id, decision: decision, note: $('reviewNote') ? $('reviewNote').value : ''
+    }});
+    closeModal();
+    await refreshApprovals();
+  } catch(e){
+    $('reviewNoteMsg').textContent = '처리 실패: ' + e.message;
+  }
+}
+
+/* ================= 관리자: 계정관리 ================= */
+async function createUser(){
+  var siteName = $('newSiteName').value.trim();
+  var id = $('newUserId').value.trim();
+  var password = $('newUserPw').value;
+  if(!siteName || !id || !password){ $('createUserNote').textContent = '사업소명, 아이디, 비밀번호를 모두 입력하세요.'; return; }
+  try{
+    await apiFetch('/api/admin/users', { method:'POST', body:{ siteName:siteName, id:id, password:password } });
+    $('newSiteName').value=''; $('newUserId').value=''; $('newUserPw').value='';
+    $('createUserNote').textContent = '계정이 생성되었습니다.';
+    await refreshUsersTable();
+  } catch(e){
+    $('createUserNote').textContent = '생성 실패: ' + e.message;
+  }
+}
+async function refreshUsersTable(){
+  try{
+    var result = await apiFetch('/api/admin/users');
+    window._adminUsers = result.users;
+    var rows = result.users.map(function(u){
+      return '<tr><td>'+escapeHtml(u.siteName)+'</td><td>'+escapeHtml(u.id)+'</td>'+
+        '<td>'+escapeHtml((u.createdAt||'').slice(0,10))+'</td>'+
+        '<td><button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-site" data-site-id="'+escapeHtml(u.siteId)+'" data-site-name="'+escapeHtml(u.siteName)+'">이력 보기</button></td></tr>';
+    }).join('');
+    document.querySelector('#usersTable tbody').innerHTML = rows || '<tr><td colspan="4">등록된 사업소 계정이 없습니다.</td></tr>';
+  } catch(e){
+    document.querySelector('#usersTable tbody').innerHTML = '<tr><td colspan="4">불러오기 실패: '+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+/* ================= 관리자: 통계 대시보드 ================= */
+async function refreshStats(){
+  try{
+    var result = await apiFetch('/api/admin/stats');
+    $('statCards').innerHTML =
+      '<div class="rpt-stat"><div class="label">전체 사업소</div><div class="value">'+result.siteCount+'개소</div></div>' +
+      '<div class="rpt-stat"><div class="label">결재 대기중</div><div class="value">'+result.grand.pendingCount+'건</div></div>' +
+      '<div class="rpt-stat"><div class="label">누적 승인</div><div class="value">'+result.grand.approvedCount+'건</div></div>' +
+      '<div class="rpt-stat"><div class="label">누적 승인 금액</div><div class="value">'+fmtNum(result.grand.approvedAmount)+'원</div></div>';
+
+    var rows = result.sites.map(function(s){
+      return '<tr>' +
+        '<td>'+escapeHtml(s.siteName)+'</td>' +
+        '<td>'+s.pendingCount+'</td>' +
+        '<td>'+s.approvedCount+'</td>' +
+        '<td>'+s.rejectedCount+'</td>' +
+        '<td>'+fmtNum(s.approvedAmount)+'원</td>' +
+        '<td>'+(s.lastSubmittedAt ? fmtDateTime(s.lastSubmittedAt) : '<span class="rpt-note">제출 없음</span>')+'</td>' +
+        '<td>'+(s.requestCount ? '<button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-site" data-site-id="'+escapeHtml(s.siteId)+'" data-site-name="'+escapeHtml(s.siteName)+'">상세</button>' : '')+'</td>' +
+      '</tr>';
+    }).join('');
+    document.querySelector('#statsTable tbody').innerHTML = rows || '<tr><td colspan="7">등록된 사업소가 없습니다.</td></tr>';
+    $('statsNote').textContent = '통계는 전체 신청 이력(대기·승인·반려)을 기준으로 집계합니다.';
+  } catch(e){
+    $('statsNote').textContent = '통계를 불러오지 못했습니다: ' + e.message;
+  }
+}
+
+/* ================= 관리자: 사업소별 신청 이력 모달 ================= */
+function openModal(html){
+  $('reportModalBody').innerHTML = html;
+  $('reportModalBackdrop').classList.add('open');
+}
+function closeModal(){
+  $('reportModalBackdrop').classList.remove('open');
+  $('reportModalBody').innerHTML = '';
+}
+async function viewSiteHistory(siteId, siteName){
+  try{
+    var result = await apiFetch('/api/admin/requests?siteId=' + encodeURIComponent(siteId));
+    var rows = result.requests.map(function(r, idx){
+      return '<tr><td>'+escapeHtml(r.requestDate)+'</td><td>'+fmtDateTime(r.submittedAt)+'</td>'+
+        '<td>'+r.rows.length+'건</td><td>'+fmtNum(r.totalAmount)+'</td><td>'+statusBadge(r.status)+'</td>'+
+        '<td><button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-open-site-request" data-idx="'+idx+'">보기</button></td></tr>';
+    }).join('');
+    window._modalSiteRequests = result.requests;
+
+    var ledgerResult = await apiFetch('/api/admin/ledger?siteId=' + encodeURIComponent(siteId)).catch(function(){ return {issues:[]}; });
+
+    openModal('<h3>'+escapeHtml(siteName)+' — 신청 이력 및 지급내역</h3>' +
+      '<h4>피복신청서 이력</h4>' +
+      (result.requests.length
+        ? '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr><th>신청일</th><th>제출일시</th><th>건수</th><th>합계금액</th><th>상태</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+        : '<p class="rpt-desc">제출한 신청서가 없습니다.</p>') +
+      '<h4 style="margin-top:1.2rem;">지급이력대장(지급내역)</h4>' +
+      '<p class="rpt-desc">승인된 신청서 기준으로 자동 집계됩니다.</p>' +
+      '<div class="rpt-table-wrap"><table class="rpt-table">'+renderLedgerTable(ledgerResult.issues||[])+'</table></div>');
+  } catch(e){
+    alert('이력을 불러오지 못했습니다: ' + e.message);
+  }
+}
+
+/* ---------- 로그인/로그아웃 ---------- */
+async function login(){
+  var id = $('loginId').value.trim();
+  var password = $('loginPw').value;
+  $('loginError').textContent = '';
+  if(!id || !password){ $('loginError').textContent = '아이디와 비밀번호를 입력하세요.'; return; }
+  try{
+    var res = await fetch(API_BASE + '/api/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id:id, password:password })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.error || '로그인에 실패했습니다.');
+    setSession({ token:data.token, role:data.role, siteId:data.siteId, siteName:data.siteName });
+    await showLoggedInView();
+  } catch(e){
+    $('loginError').textContent = e.message;
+  }
+}
+function logout(){
+  clearSession();
+  showLoginView();
+}
+
+async function bootstrapAdmin(){
+  var id = $('bootstrapId').value.trim();
+  var password = $('bootstrapPw').value;
+  $('bootstrapNote').textContent = '';
+  if(!id || !password){ $('bootstrapNote').textContent = '아이디와 비밀번호를 입력하세요.'; return; }
+  $('btnBootstrapAdmin').disabled = true;
+  try{
+    var res = await fetch(API_BASE + '/api/bootstrap-admin', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id:id, password:password })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.error || '생성에 실패했습니다.');
+    $('bootstrapNote').textContent = '관리자 계정이 생성되었습니다. 위 로그인 폼에서 로그인해주세요.';
+    $('loginId').value = id;
+    $('bootstrapPw').value = '';
+  } catch(e){
+    $('bootstrapNote').textContent = '실패: ' + e.message;
+  } finally {
+    $('btnBootstrapAdmin').disabled = false;
+  }
+}
+
+/* ---------- 화면 전환 ---------- */
+function showLoginView(){
+  $('loginScreen').style.display = 'block';
+  $('adminPanel').style.display = 'none';
+  $('siteApp').style.display = 'none';
+  $('loginId').value = ''; $('loginPw').value = ''; $('loginError').textContent = '';
+}
+async function showLoggedInView(){
+  var session = getSession();
+  if(!session){ showLoginView(); return; }
+  $('loginScreen').style.display = 'none';
+  if(session.role === 'admin'){
+    $('adminPanel').style.display = 'block';
+    $('siteApp').style.display = 'none';
+    await refreshApprovals();
+    await refreshUsersTable();
+  } else {
+    $('adminPanel').style.display = 'none';
+    $('siteApp').style.display = 'block';
+    $('currentSiteName').textContent = session.siteName + ' 님으로 로그인됨';
+    resetReportForm();
+  }
+}
+
+/* ---------- 초기화 ---------- */
+function init(){
+  $('btnLogin').addEventListener('click', login);
+  $('loginPw').addEventListener('keydown', function(e){ if(e.key === 'Enter') login(); });
+  $('btnBootstrapAdmin').addEventListener('click', bootstrapAdmin);
+  $('btnLogout').addEventListener('click', logout);
+  $('btnLogoutAdmin').addEventListener('click', logout);
+  $('btnCloseModal').addEventListener('click', closeModal);
+  $('reportModalBackdrop').addEventListener('click', function(e){ if(e.target === $('reportModalBackdrop')) closeModal(); });
+
+  initTabs($('adminPanel'));
+  initTabs($('siteApp'));
+
+  $('btnCreateUser').addEventListener('click', createUser);
+  $('btnAddRow').addEventListener('click', function(){ addRow(); });
+  $('btnSubmitReport').addEventListener('click', submitReport);
+  $('btnDownloadTemplate').addEventListener('click', downloadTemplate);
+  $('excelUploadInput').addEventListener('change', function(e){
+    if(e.target.files[0]) handleExcelUpload(e.target.files[0]).then(function(){ e.target.value=''; });
+  });
+  $('approvalStatusFilter').addEventListener('change', refreshApprovals);
+
+  document.querySelector('#rowsTable tbody').addEventListener('input', recalcTotals);
+  document.querySelector('#rowsTable tbody').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-remove-row');
+    if(!btn) return;
+    btn.closest('tr').remove();
+    recalcTotals();
+  });
+
+  document.querySelector('#usersTable').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-view-site');
+    if(!btn) return;
+    viewSiteHistory(btn.dataset.siteId, btn.dataset.siteName);
+  });
+  document.querySelector('#statsTable').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-view-site');
+    if(!btn) return;
+    viewSiteHistory(btn.dataset.siteId, btn.dataset.siteName);
+  });
+  document.querySelector('#approvalsTable').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-open-approval');
+    if(!btn) return;
+    openApprovalDetail(window._adminApprovalRequests[Number(btn.dataset.idx)]);
+  });
+  $('reportModalBody').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-open-site-request');
+    if(btn){ openApprovalDetail(window._modalSiteRequests[Number(btn.dataset.idx)]); return; }
+  });
+  document.querySelector('#historyTable').addEventListener('click', function(e){
+    var btn = e.target.closest('.act-view-history');
+    if(!btn) return;
+    var req = (window._siteHistoryRequests||[]).find(function(r){ return r.id === Number(btn.dataset.id); });
+    if(req) showReportPreview(buildReportHtml(getSession().siteName, req));
+  });
+
+  if(getSession()) showLoggedInView();
+  else showLoginView();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
