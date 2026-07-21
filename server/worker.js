@@ -214,6 +214,10 @@ function toNumber(v) {
   return isNaN(n) ? 0 : n;
 }
 
+function isStaff(auth) {
+  return !!auth && (auth.role === 'admin' || auth.role === 'ceo');
+}
+
 function todayIso() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -238,7 +242,7 @@ async function handleLogin(env, request) {
     uid: user.id, role: user.role, siteId: user.siteId, siteName: user.siteName,
     exp: Date.now() + 1000 * 60 * 60 * 12, // 12시간
   });
-  return jsonResponse(env, { token: token, role: user.role, siteId: user.siteId, siteName: user.siteName });
+  return jsonResponse(env, { token: token, uid: user.id, role: user.role, siteId: user.siteId, siteName: user.siteName });
 }
 
 // 최초 1회: users.json 이 저장소에 아직 없을 때만 동작 (첫 관리자 계정 생성)
@@ -262,17 +266,29 @@ async function handleCreateUser(env, request) {
   if (!auth || auth.role !== 'admin') return errorResponse(env, '관리자만 사용할 수 있습니다.', 403);
 
   var body = await request.json().catch(function () { return {}; });
-  var siteName = String(body.siteName || '').trim();
+  var accountType = body.accountType === 'ceo' ? 'ceo' : 'user';
   var id = String(body.id || '').trim();
   var password = String(body.password || '');
-  if (!siteName || !id || !password) return errorResponse(env, '사업소명, 아이디, 비밀번호를 모두 입력하세요.', 400);
+  if (!id || !password) return errorResponse(env, '아이디와 비밀번호를 입력하세요.', 400);
 
   var { users, sha } = await loadUsers(env);
   if (users.some(function (u) { return u.id === id; })) return errorResponse(env, '이미 존재하는 아이디입니다.', 409);
 
+  if (accountType === 'ceo') {
+    var name = String(body.name || '대표자').trim();
+    var passwordHash = await hashPassword(password);
+    var ceoUser = { id: id, passwordHash: passwordHash, role: 'ceo', siteId: null, siteName: name, createdAt: new Date().toISOString() };
+    users.push(ceoUser);
+    await writeJsonFile(env, 'data/users.json', users, '대표자 계정 생성: ' + id, sha);
+    return jsonResponse(env, { ok: true });
+  }
+
+  var siteName = String(body.siteName || '').trim();
+  if (!siteName) return errorResponse(env, '사업소명을 입력하세요.', 400);
+
   var siteId = sanitizeSiteId(siteName);
-  var passwordHash = await hashPassword(password);
-  var newUser = { id: id, passwordHash: passwordHash, role: 'user', siteId: siteId, siteName: siteName, createdAt: new Date().toISOString() };
+  var passwordHash2 = await hashPassword(password);
+  var newUser = { id: id, passwordHash: passwordHash2, role: 'user', siteId: siteId, siteName: siteName, createdAt: new Date().toISOString() };
   users.push(newUser);
   await writeJsonFile(env, 'data/users.json', users, '사업소 계정 생성: ' + id + ' (' + siteName + ')', sha);
   await writeJsonFile(env, 'data/sites/' + siteId + '/requests.json', [], '신청 이력 초기화: ' + siteName, null);
@@ -287,7 +303,7 @@ async function handleListUsers(env, request) {
 
   var { users } = await loadUsers(env);
   var list = users.filter(function (u) { return u.role !== 'admin'; }).map(function (u) {
-    return { id: u.id, siteName: u.siteName, siteId: u.siteId, createdAt: u.createdAt };
+    return { id: u.id, role: u.role, siteName: u.siteName, siteId: u.siteId, createdAt: u.createdAt };
   });
   return jsonResponse(env, { users: list });
 }
@@ -303,7 +319,7 @@ function sortRequests(requests) {
 async function handleGetRequests(env, request, url) {
   var auth = await requireAuth(env, request);
   if (!auth) return errorResponse(env, '로그인이 필요합니다.', 401);
-  var siteId = (auth.role === 'admin' ? url.searchParams.get('siteId') : auth.siteId);
+  var siteId = (auth.role === 'user' ? auth.siteId : url.searchParams.get('siteId'));
   if (!siteId) return errorResponse(env, 'siteId가 필요합니다.', 400);
   var { requests } = await loadSiteRequests(env, siteId);
   return jsonResponse(env, { requests: sortRequests(requests) });
@@ -348,9 +364,12 @@ async function handleSubmitRequest(env, request) {
     status: 'pending',
     submittedAt: new Date().toISOString(),
     submittedBy: auth.uid,
-    reviewedAt: null,
-    reviewedBy: null,
-    reviewNote: '',
+    adminReviewedAt: null,
+    adminReviewedBy: null,
+    adminNote: '',
+    ceoReviewedAt: null,
+    ceoReviewedBy: null,
+    ceoNote: '',
   };
   requests.push(reqObj);
   await writeJsonFile(env, 'data/sites/' + auth.siteId + '/requests.json', requests, '피복신청서 제출: ' + auth.siteId + ' (' + requestDate + ')', sha);
@@ -361,12 +380,12 @@ async function handleSubmitRequest(env, request) {
 
 async function handleAdminAllRequests(env, request, url) {
   var auth = await requireAuth(env, request);
-  if (!auth || auth.role !== 'admin') return errorResponse(env, '관리자만 사용할 수 있습니다.', 403);
-  var statusFilter = url.searchParams.get('status'); // pending | approved | rejected | (없으면 전체)
+  if (!auth || !isStaff(auth)) return errorResponse(env, '본사 또는 대표자 계정만 사용할 수 있습니다.', 403);
+  var statusFilter = url.searchParams.get('status'); // pending | submitted_to_ceo | approved | rejected | (없으면 전체)
   var siteFilter = url.searchParams.get('siteId'); // 특정 사업소만 (없으면 전체 사업소)
 
   var { users } = await loadUsers(env);
-  var sites = users.filter(function (u) { return u.role !== 'admin' && (!siteFilter || u.siteId === siteFilter); });
+  var sites = users.filter(function (u) { return u.role === 'user' && (!siteFilter || u.siteId === siteFilter); });
 
   var all = [];
   for (var i = 0; i < sites.length; i++) {
@@ -386,9 +405,12 @@ async function handleAdminAllRequests(env, request, url) {
   return jsonResponse(env, { requests: all });
 }
 
+// 결재 흐름: 사업소 제출(pending) -> 본사 1차 검토(admin) -> 대표자 최종 결재(ceo) -> approved/rejected
+// 본사는 pending 건을 '대표자에게 상신'(submit_to_ceo) 하거나 '반려'(rejected) 할 수 있고,
+// 상신한 건은 대표자가 아직 처리하기 전이라면 '회수'(recall) 하여 pending으로 되돌릴 수 있다.
 async function handleReviewRequest(env, request) {
   var auth = await requireAuth(env, request);
-  if (!auth || auth.role !== 'admin') return errorResponse(env, '관리자만 사용할 수 있습니다.', 403);
+  if (!auth || !isStaff(auth)) return errorResponse(env, '본사 또는 대표자 계정만 사용할 수 있습니다.', 403);
 
   var body = await request.json().catch(function () { return {}; });
   var siteId = String(body.siteId || '').trim();
@@ -396,20 +418,47 @@ async function handleReviewRequest(env, request) {
   var decision = String(body.decision || '');
   var note = String(body.note || '').trim();
   if (!siteId || !requestId) return errorResponse(env, 'siteId와 requestId가 필요합니다.', 400);
-  if (decision !== 'approved' && decision !== 'rejected') return errorResponse(env, 'decision은 approved 또는 rejected여야 합니다.', 400);
 
   var { requests, sha } = await loadSiteRequests(env, siteId);
   var target = requests.find(function (r) { return r.id === requestId; });
   if (!target) return errorResponse(env, '신청서를 찾을 수 없습니다.', 404);
-  if (target.status !== 'pending') return errorResponse(env, '이미 처리된 신청서입니다.', 409);
 
-  target.status = decision;
-  target.reviewedAt = new Date().toISOString();
-  target.reviewedBy = auth.uid;
-  target.reviewNote = note;
-  await writeJsonFile(env, 'data/sites/' + siteId + '/requests.json', requests, '피복신청서 ' + (decision === 'approved' ? '승인' : '반려') + ': ' + siteId + ' #' + requestId, sha);
+  var commitMessage;
+  var shouldCreateIssues = false;
 
-  if (decision === 'approved') {
+  if (auth.role === 'admin') {
+    if (decision === 'recall') {
+      if (target.status !== 'submitted_to_ceo') return errorResponse(env, '대표자에게 상신 중인 신청서만 회수할 수 있습니다.', 409);
+      if (target.ceoReviewedAt) return errorResponse(env, '이미 대표자가 처리한 신청서는 회수할 수 없습니다.', 409);
+      if (target.adminReviewedBy !== auth.uid) return errorResponse(env, '본인이 상신한 신청서만 회수할 수 있습니다.', 403);
+      target.status = 'pending';
+      target.adminReviewedAt = null;
+      target.adminReviewedBy = null;
+      target.adminNote = '';
+      commitMessage = '피복신청서 상신 회수: ' + siteId + ' #' + requestId;
+    } else {
+      if (target.status !== 'pending') return errorResponse(env, '본사 검토 대상이 아닙니다.', 409);
+      if (decision !== 'submit_to_ceo' && decision !== 'rejected') return errorResponse(env, 'decision은 submit_to_ceo, rejected, recall 중 하나여야 합니다.', 400);
+      target.adminReviewedAt = new Date().toISOString();
+      target.adminReviewedBy = auth.uid;
+      target.adminNote = note;
+      target.status = decision === 'submit_to_ceo' ? 'submitted_to_ceo' : 'rejected';
+      commitMessage = '피복신청서 ' + (decision === 'submit_to_ceo' ? '대표자 상신' : '본사 반려') + ': ' + siteId + ' #' + requestId;
+    }
+  } else { // ceo
+    if (target.status !== 'submitted_to_ceo') return errorResponse(env, '대표자 결재 대상이 아닙니다.', 409);
+    if (decision !== 'approved' && decision !== 'rejected') return errorResponse(env, 'decision은 approved 또는 rejected여야 합니다.', 400);
+    target.ceoReviewedAt = new Date().toISOString();
+    target.ceoReviewedBy = auth.uid;
+    target.ceoNote = note;
+    target.status = decision;
+    shouldCreateIssues = decision === 'approved';
+    commitMessage = '피복신청서 대표자 ' + (decision === 'approved' ? '승인' : '반려') + ': ' + siteId + ' #' + requestId;
+  }
+
+  await writeJsonFile(env, 'data/sites/' + siteId + '/requests.json', requests, commitMessage, sha);
+
+  if (shouldCreateIssues) {
     var { issues, sha: issuesSha } = await loadSiteIssues(env, siteId);
     var issueDate = todayIso();
     target.rows.forEach(function (row) {
@@ -434,7 +483,7 @@ async function handleReviewRequest(env, request) {
 async function handleGetIssues(env, request, url) {
   var auth = await requireAuth(env, request);
   if (!auth) return errorResponse(env, '로그인이 필요합니다.', 401);
-  var siteId = (auth.role === 'admin' ? url.searchParams.get('siteId') : auth.siteId);
+  var siteId = (auth.role === 'user' ? auth.siteId : url.searchParams.get('siteId'));
   if (!siteId) return errorResponse(env, 'siteId가 필요합니다.', 400);
   var { issues } = await loadSiteIssues(env, siteId);
   return jsonResponse(env, { issues: issues });
@@ -444,13 +493,13 @@ async function handleGetIssues(env, request, url) {
 
 async function handleAdminStats(env, request) {
   var auth = await requireAuth(env, request);
-  if (!auth || auth.role !== 'admin') return errorResponse(env, '관리자만 사용할 수 있습니다.', 403);
+  if (!auth || !isStaff(auth)) return errorResponse(env, '본사 또는 대표자 계정만 사용할 수 있습니다.', 403);
 
   var { users } = await loadUsers(env);
-  var sites = users.filter(function (u) { return u.role !== 'admin'; });
+  var sites = users.filter(function (u) { return u.role === 'user'; });
 
   var siteStats = [];
-  var grand = { pendingCount: 0, approvedCount: 0, rejectedCount: 0, approvedAmount: 0 };
+  var grand = { pendingCount: 0, submittedToCeoCount: 0, approvedCount: 0, rejectedCount: 0, approvedAmount: 0 };
   for (var i = 0; i < sites.length; i++) {
     var u = sites[i];
     var reqs = [];
@@ -459,12 +508,14 @@ async function handleAdminStats(env, request) {
       reqs = r.requests;
     } catch (e) { /* ignore, treat as no requests */ }
     var pending = reqs.filter(function (r) { return r.status === 'pending'; });
+    var submittedToCeo = reqs.filter(function (r) { return r.status === 'submitted_to_ceo'; });
     var approved = reqs.filter(function (r) { return r.status === 'approved'; });
     var rejected = reqs.filter(function (r) { return r.status === 'rejected'; });
     var approvedAmount = approved.reduce(function (sum, r) { return sum + (r.totalAmount || 0); }, 0);
     var sorted = sortRequests(reqs);
 
     grand.pendingCount += pending.length;
+    grand.submittedToCeoCount += submittedToCeo.length;
     grand.approvedCount += approved.length;
     grand.rejectedCount += rejected.length;
     grand.approvedAmount += approvedAmount;
@@ -473,19 +524,69 @@ async function handleAdminStats(env, request) {
       siteId: u.siteId, siteName: u.siteName,
       requestCount: reqs.length,
       pendingCount: pending.length,
+      submittedToCeoCount: submittedToCeo.length,
       approvedCount: approved.length,
       rejectedCount: rejected.length,
       approvedAmount: approvedAmount,
       lastSubmittedAt: sorted.length ? sorted[0].submittedAt : null,
     });
   }
-  siteStats.sort(function (a, b) { return b.pendingCount - a.pendingCount; });
+  siteStats.sort(function (a, b) { return (b.pendingCount + b.submittedToCeoCount) - (a.pendingCount + a.submittedToCeoCount); });
 
   return jsonResponse(env, {
     siteCount: sites.length,
     grand: grand,
     sites: siteStats,
   });
+}
+
+/* ---------- 라우트 핸들러: 월간 보고서 ---------- */
+
+async function handleMonthlyReport(env, request, url) {
+  var auth = await requireAuth(env, request);
+  if (!auth || !isStaff(auth)) return errorResponse(env, '본사 또는 대표자 계정만 사용할 수 있습니다.', 403);
+
+  var month = String(url.searchParams.get('month') || '').trim(); // 'YYYY-MM'
+  if (!/^\d{4}-\d{2}$/.test(month)) return errorResponse(env, 'month는 YYYY-MM 형식이어야 합니다.', 400);
+
+  var { users } = await loadUsers(env);
+  var sites = users.filter(function (u) { return u.role === 'user'; });
+
+  var siteRows = [];
+  var itemAgg = {};
+  var grand = { count: 0, amount: 0 };
+
+  for (var i = 0; i < sites.length; i++) {
+    var u = sites[i];
+    var reqs = [];
+    try {
+      var r = await loadSiteRequests(env, u.siteId);
+      reqs = r.requests;
+    } catch (e) { /* ignore */ }
+    var approvedInMonth = reqs.filter(function (rq) {
+      return rq.status === 'approved' && rq.ceoReviewedAt && rq.ceoReviewedAt.slice(0, 7) === month;
+    });
+    var siteAmount = 0;
+    approvedInMonth.forEach(function (rq) {
+      siteAmount += rq.totalAmount || 0;
+      rq.rows.forEach(function (row) {
+        var key = row.item || '기타';
+        if (!itemAgg[key]) itemAgg[key] = { qty: 0, amount: 0 };
+        itemAgg[key].qty += toNumber(row.qty);
+        itemAgg[key].amount += toNumber(row.amount);
+      });
+    });
+    grand.count += approvedInMonth.length;
+    grand.amount += siteAmount;
+    if (approvedInMonth.length) {
+      siteRows.push({ siteId: u.siteId, siteName: u.siteName, count: approvedInMonth.length, amount: siteAmount });
+    }
+  }
+  siteRows.sort(function (a, b) { return b.amount - a.amount; });
+  var itemRows = Object.keys(itemAgg).map(function (k) { return { item: k, qty: itemAgg[k].qty, amount: itemAgg[k].amount }; });
+  itemRows.sort(function (a, b) { return b.amount - a.amount; });
+
+  return jsonResponse(env, { month: month, grand: grand, sites: siteRows, items: itemRows });
 }
 
 /* ---------- 진입점 ---------- */
@@ -502,6 +603,7 @@ export default {
       if (url.pathname === '/api/admin/users' && request.method === 'GET') return await handleListUsers(env, request);
       if (url.pathname === '/api/admin/users' && request.method === 'POST') return await handleCreateUser(env, request);
       if (url.pathname === '/api/admin/stats' && request.method === 'GET') return await handleAdminStats(env, request);
+      if (url.pathname === '/api/admin/monthly-report' && request.method === 'GET') return await handleMonthlyReport(env, request, url);
       if (url.pathname === '/api/admin/requests' && request.method === 'GET') return await handleAdminAllRequests(env, request, url);
       if (url.pathname === '/api/admin/requests/review' && request.method === 'POST') return await handleReviewRequest(env, request);
       if (url.pathname === '/api/admin/ledger' && request.method === 'GET') return await handleGetIssues(env, request, url);

@@ -67,6 +67,7 @@ h1, h2, h3, h4{color:#16233c;}
 
 .rpt-badge{display:inline-block;padding:.15em .6em;border-radius:999px;font-size:.75rem;font-weight:700;}
 .rpt-badge--pending{background:#e8a33d;color:#fff;}
+.rpt-badge--submitted_to_ceo{background:#6c5ce7;color:#fff;}
 .rpt-badge--approved{background:#1f9d55;color:#fff;}
 .rpt-badge--rejected{background:#c0392b;color:#fff;}
 
@@ -172,14 +173,15 @@ body.report-preview-open .report-print-area{
 <!-- ================= 관리자(본사) 화면 ================= -->
 <div id="adminPanel" class="rpt-app" style="display:none;">
   <div class="rpt-toolbar" style="justify-content:space-between;">
-    <span class="rpt-desc" style="margin:0;font-weight:700;">본사 관리자 화면</span>
+    <span id="staffRoleLabel" class="rpt-desc" style="margin:0;font-weight:700;">본사 관리자 화면</span>
     <button type="button" id="btnLogoutAdmin" class="rpt-btn rpt-btn--outline">로그아웃</button>
   </div>
 
   <div class="rpt-tabs">
-    <button type="button" class="rpt-tab active" data-tab="adminApprovals">결재 대기함</button>
+    <button type="button" class="rpt-tab active" data-tab="adminApprovals" id="tabAdminApprovals">결재 대기함</button>
     <button type="button" class="rpt-tab" data-tab="adminStats">통계 대시보드</button>
-    <button type="button" class="rpt-tab" data-tab="adminUsers">사업소 계정관리</button>
+    <button type="button" class="rpt-tab" data-tab="adminMonthly">월간 보고서</button>
+    <button type="button" class="rpt-tab" data-tab="adminUsers" id="tabAdminUsers">계정관리</button>
   </div>
 
   <div id="adminApprovals" class="rpt-tabpanel active">
@@ -188,7 +190,8 @@ body.report-preview-open .report-print-area{
       <div class="rpt-toolbar">
         <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;font-weight:600;color:#33415c;">상태
           <select id="approvalStatusFilter">
-            <option value="pending" selected>대기중</option>
+            <option value="pending">대기중(본사 검토 전)</option>
+            <option value="submitted_to_ceo">대표자 결재중</option>
             <option value="approved">승인됨</option>
             <option value="rejected">반려됨</option>
             <option value="">전체</option>
@@ -210,11 +213,24 @@ body.report-preview-open .report-print-area{
       <div class="rpt-stat-grid" id="statCards"></div>
       <div class="rpt-table-wrap">
         <table class="rpt-table rpt-table--sticky-first" id="statsTable">
-          <thead><tr><th>사업소명</th><th>대기중</th><th>승인</th><th>반려</th><th>승인 금액</th><th>최근 신청일시</th><th></th></tr></thead>
+          <thead><tr><th>사업소명</th><th>대기중</th><th>대표자 결재중</th><th>승인</th><th>반려</th><th>승인 금액</th><th>최근 신청일시</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <p class="rpt-note" id="statsNote"></p>
+    </section>
+  </div>
+
+  <div id="adminMonthly" class="rpt-tabpanel">
+    <section class="rpt-card">
+      <h3>월간 보고서</h3>
+      <p class="rpt-desc">해당 월에 대표자 최종 승인된 피복신청서를 기준으로 집계합니다.</p>
+      <div class="rpt-toolbar">
+        <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;font-weight:600;color:#33415c;">대상 월<input type="month" id="monthlyReportMonth"></label>
+        <button type="button" id="btnRunMonthlyReport" class="rpt-btn rpt-btn--solid" style="align-self:flex-end;">조회</button>
+        <button type="button" id="btnPrintMonthlyReport" class="rpt-btn rpt-btn--outline" style="align-self:flex-end;">🖨️ 인쇄 미리보기</button>
+      </div>
+      <div id="monthlyReportResult"></div>
     </section>
   </div>
 
@@ -226,11 +242,25 @@ body.report-preview-open .report-print-area{
         <label>아이디<input type="text" id="newUserId"></label>
         <label>비밀번호<input type="password" id="newUserPw"></label>
       </div>
-      <button type="button" id="btnCreateUser" class="rpt-btn rpt-btn--solid">계정 생성</button>
+      <button type="button" id="btnCreateUser" class="rpt-btn rpt-btn--solid">사업소 계정 생성</button>
       <span id="createUserNote" class="rpt-note"></span>
-      <div class="rpt-table-wrap" style="margin-top:1.2rem;">
+    </section>
+    <section class="rpt-card">
+      <h3>대표자 계정 발급</h3>
+      <p class="rpt-desc">본사 1차 검토가 끝난 신청서를 최종 결재하는 대표자 계정입니다.</p>
+      <div class="rpt-grid">
+        <label>이름<input type="text" id="newCeoName" placeholder="예) 홍길동 대표"></label>
+        <label>아이디<input type="text" id="newCeoId"></label>
+        <label>비밀번호<input type="password" id="newCeoPw"></label>
+      </div>
+      <button type="button" id="btnCreateCeo" class="rpt-btn rpt-btn--solid">대표자 계정 생성</button>
+      <span id="createCeoNote" class="rpt-note"></span>
+    </section>
+    <section class="rpt-card">
+      <h3>전체 계정 목록</h3>
+      <div class="rpt-table-wrap">
         <table class="rpt-table rpt-table--sticky-first" id="usersTable">
-          <thead><tr><th>사업소명</th><th>아이디</th><th>생성일</th><th></th></tr></thead>
+          <thead><tr><th>구분</th><th>이름/사업소명</th><th>아이디</th><th>생성일</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -334,7 +364,7 @@ function fmtDateTime(iso){
   if(isNaN(d.getTime())) return iso;
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
-var STATUS_LABEL = { pending:'대기중', approved:'승인', rejected:'반려' };
+var STATUS_LABEL = { pending:'대기중(본사 검토 전)', submitted_to_ceo:'대표자 결재중', approved:'승인', rejected:'반려' };
 function statusBadge(status){
   return '<span class="rpt-badge rpt-badge--'+status+'">'+(STATUS_LABEL[status]||status)+'</span>';
 }
@@ -593,7 +623,7 @@ function buildReportHtml(siteName, req){
     '<tfoot><tr><td colspan="6">합 계</td><td>'+fmtNum(req.totalAmount)+'</td><td></td></tr></tfoot>' +
     '</table></div>' +
     '<p>사업소 주소: '+escapeHtml(req.siteAddress||'')+'<br>연락처: '+escapeHtml(req.contact||'')+'</p>' +
-    (req.status === 'rejected' && req.reviewNote ? '<p><strong>반려 사유:</strong><br>'+escapeHtml(req.reviewNote).replace(/\n/g,'<br>')+'</p>' : '') +
+    (req.status === 'rejected' && (req.ceoNote || req.adminNote) ? '<p><strong>반려 사유:</strong><br>'+escapeHtml(req.ceoNote || req.adminNote).replace(/\n/g,'<br>')+'</p>' : '') +
   '</div>';
 }
 
@@ -671,27 +701,48 @@ async function refreshApprovals(){
   }
 }
 
+var DECISION_LABEL = { submit_to_ceo:'대표자에게 상신', rejected:'반려', recall:'상신 회수', approved:'승인' };
+
 function openApprovalDetail(req){
   var rows = req.rows.map(function(r){
     return '<tr><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.position)+'</td><td>'+escapeHtml(r.item)+'</td>'+
       '<td>'+escapeHtml(r.spec)+'</td><td>'+fmtNum(r.qty)+'</td><td>'+fmtNum(r.unitPrice)+'</td><td>'+fmtNum(r.amount)+'</td>'+
       '<td>'+escapeHtml(r.reason)+'</td></tr>';
   }).join('');
+  var session = getSession();
   var actionHtml = '';
-  if(req.status === 'pending'){
+  var buttons = [];
+
+  if(session.role === 'admin' && req.status === 'pending'){
+    buttons = [
+      {decision:'submit_to_ceo', label:'대표자에게 상신', cls:'rpt-btn--solid'},
+      {decision:'rejected', label:'반려', cls:'rpt-btn--danger'},
+    ];
+  } else if(session.role === 'admin' && req.status === 'submitted_to_ceo' && req.adminReviewedBy === session.uid){
+    buttons = [ {decision:'recall', label:'상신 회수', cls:'rpt-btn--danger-outline'} ];
+  } else if(session.role === 'ceo' && req.status === 'submitted_to_ceo'){
+    buttons = [
+      {decision:'approved', label:'승인', cls:'rpt-btn--solid'},
+      {decision:'rejected', label:'반려', cls:'rpt-btn--danger'},
+    ];
+  }
+
+  if(buttons.length){
     actionHtml =
       '<div class="rpt-grid" style="margin-top:1rem;">' +
-        '<label class="rpt-span2">반려 시 사유(승인에는 선택)<textarea id="reviewNote" rows="2" placeholder="반려하는 경우 사유를 입력하세요"></textarea></label>' +
+        '<label class="rpt-span2">참고사항 / 반려 사유<textarea id="reviewNote" rows="2" placeholder="필요 시 입력하세요 (반려하는 경우 사유를 입력해주세요)"></textarea></label>' +
       '</div>' +
       '<div class="rpt-toolbar">' +
-        '<button type="button" id="btnApprove" class="rpt-btn rpt-btn--solid">승인</button>' +
-        '<button type="button" id="btnReject" class="rpt-btn rpt-btn--danger">반려</button>' +
+        buttons.map(function(b){ return '<button type="button" class="rpt-btn '+b.cls+' act-review-decision" data-decision="'+b.decision+'">'+b.label+'</button>'; }).join('') +
         '<span id="reviewNoteMsg" class="rpt-note"></span>' +
       '</div>';
   } else {
-    actionHtml = '<p class="rpt-note">처리일시: '+fmtDateTime(req.reviewedAt)+' · 처리자: '+escapeHtml(req.reviewedBy||'')+
-      (req.reviewNote ? '<br>사유: '+escapeHtml(req.reviewNote) : '')+'</p>';
+    var infoLines = [];
+    if(req.adminReviewedAt) infoLines.push('본사 처리: '+fmtDateTime(req.adminReviewedAt)+' · '+escapeHtml(req.adminReviewedBy||'')+(req.adminNote?' · '+escapeHtml(req.adminNote):''));
+    if(req.ceoReviewedAt) infoLines.push('대표자 처리: '+fmtDateTime(req.ceoReviewedAt)+' · '+escapeHtml(req.ceoReviewedBy||'')+(req.ceoNote?' · '+escapeHtml(req.ceoNote):''));
+    actionHtml = infoLines.length ? '<p class="rpt-note">'+infoLines.join('<br>')+'</p>' : '<p class="rpt-note">아직 처리 이력이 없습니다.</p>';
   }
+
   openModal(
     '<h3>'+escapeHtml(req.siteName)+' — 피복신청서 '+statusBadge(req.status)+'</h3>' +
     '<p class="rpt-desc">신청일 '+escapeHtml(req.requestDate)+' · 제출일시 '+fmtDateTime(req.submittedAt)+' · 사업소 주소 '+escapeHtml(req.siteAddress||'')+' · 연락처 '+escapeHtml(req.contact||'')+'</p>' +
@@ -700,17 +751,16 @@ function openApprovalDetail(req){
     '<tfoot><tr><td colspan="6">합계</td><td>'+fmtNum(req.totalAmount)+'</td><td></td></tr></tfoot></table></div>' +
     actionHtml
   );
-  if(req.status === 'pending'){
-    $('btnApprove').addEventListener('click', function(){ reviewRequest(req, 'approved'); });
-    $('btnReject').addEventListener('click', function(){ reviewRequest(req, 'rejected'); });
-  }
+  document.querySelectorAll('#reportModalBody .act-review-decision').forEach(function(btn){
+    btn.addEventListener('click', function(){ reviewRequest(req, btn.dataset.decision); });
+  });
 }
 
 async function reviewRequest(req, decision){
   if(decision === 'rejected' && !$('reviewNote').value.trim()){
     if(!confirm('반려 사유 없이 반려하시겠습니까?')) return;
   }
-  if(!confirm((decision === 'approved' ? '승인' : '반려') + '하시겠습니까?')) return;
+  if(!confirm((DECISION_LABEL[decision]||decision) + ' 처리하시겠습니까?')) return;
   try{
     await apiFetch('/api/admin/requests/review', { method:'POST', body:{
       siteId: req.siteId, requestId: req.id, decision: decision, note: $('reviewNote') ? $('reviewNote').value : ''
@@ -729,7 +779,7 @@ async function createUser(){
   var password = $('newUserPw').value;
   if(!siteName || !id || !password){ $('createUserNote').textContent = '사업소명, 아이디, 비밀번호를 모두 입력하세요.'; return; }
   try{
-    await apiFetch('/api/admin/users', { method:'POST', body:{ siteName:siteName, id:id, password:password } });
+    await apiFetch('/api/admin/users', { method:'POST', body:{ accountType:'user', siteName:siteName, id:id, password:password } });
     $('newSiteName').value=''; $('newUserId').value=''; $('newUserPw').value='';
     $('createUserNote').textContent = '계정이 생성되었습니다.';
     await refreshUsersTable();
@@ -737,18 +787,36 @@ async function createUser(){
     $('createUserNote').textContent = '생성 실패: ' + e.message;
   }
 }
+async function createCeo(){
+  var name = $('newCeoName').value.trim();
+  var id = $('newCeoId').value.trim();
+  var password = $('newCeoPw').value;
+  if(!name || !id || !password){ $('createCeoNote').textContent = '이름, 아이디, 비밀번호를 모두 입력하세요.'; return; }
+  try{
+    await apiFetch('/api/admin/users', { method:'POST', body:{ accountType:'ceo', name:name, id:id, password:password } });
+    $('newCeoName').value=''; $('newCeoId').value=''; $('newCeoPw').value='';
+    $('createCeoNote').textContent = '계정이 생성되었습니다.';
+    await refreshUsersTable();
+  } catch(e){
+    $('createCeoNote').textContent = '생성 실패: ' + e.message;
+  }
+}
 async function refreshUsersTable(){
   try{
     var result = await apiFetch('/api/admin/users');
     window._adminUsers = result.users;
     var rows = result.users.map(function(u){
-      return '<tr><td>'+escapeHtml(u.siteName)+'</td><td>'+escapeHtml(u.id)+'</td>'+
+      var typeLabel = u.role === 'ceo' ? '대표자' : '사업소';
+      var historyBtn = u.role === 'user'
+        ? '<button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-site" data-site-id="'+escapeHtml(u.siteId)+'" data-site-name="'+escapeHtml(u.siteName)+'">이력 보기</button>'
+        : '';
+      return '<tr><td>'+typeLabel+'</td><td>'+escapeHtml(u.siteName)+'</td><td>'+escapeHtml(u.id)+'</td>'+
         '<td>'+escapeHtml((u.createdAt||'').slice(0,10))+'</td>'+
-        '<td><button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-site" data-site-id="'+escapeHtml(u.siteId)+'" data-site-name="'+escapeHtml(u.siteName)+'">이력 보기</button></td></tr>';
+        '<td>'+historyBtn+'</td></tr>';
     }).join('');
-    document.querySelector('#usersTable tbody').innerHTML = rows || '<tr><td colspan="4">등록된 사업소 계정이 없습니다.</td></tr>';
+    document.querySelector('#usersTable tbody').innerHTML = rows || '<tr><td colspan="5">등록된 계정이 없습니다.</td></tr>';
   } catch(e){
-    document.querySelector('#usersTable tbody').innerHTML = '<tr><td colspan="4">불러오기 실패: '+escapeHtml(e.message)+'</td></tr>';
+    document.querySelector('#usersTable tbody').innerHTML = '<tr><td colspan="5">불러오기 실패: '+escapeHtml(e.message)+'</td></tr>';
   }
 }
 
@@ -758,7 +826,8 @@ async function refreshStats(){
     var result = await apiFetch('/api/admin/stats');
     $('statCards').innerHTML =
       '<div class="rpt-stat"><div class="label">전체 사업소</div><div class="value">'+result.siteCount+'개소</div></div>' +
-      '<div class="rpt-stat"><div class="label">결재 대기중</div><div class="value">'+result.grand.pendingCount+'건</div></div>' +
+      '<div class="rpt-stat"><div class="label">본사 검토 대기</div><div class="value">'+result.grand.pendingCount+'건</div></div>' +
+      '<div class="rpt-stat"><div class="label">대표자 결재중</div><div class="value">'+result.grand.submittedToCeoCount+'건</div></div>' +
       '<div class="rpt-stat"><div class="label">누적 승인</div><div class="value">'+result.grand.approvedCount+'건</div></div>' +
       '<div class="rpt-stat"><div class="label">누적 승인 금액</div><div class="value">'+fmtNum(result.grand.approvedAmount)+'원</div></div>';
 
@@ -766,6 +835,7 @@ async function refreshStats(){
       return '<tr>' +
         '<td>'+escapeHtml(s.siteName)+'</td>' +
         '<td>'+s.pendingCount+'</td>' +
+        '<td>'+s.submittedToCeoCount+'</td>' +
         '<td>'+s.approvedCount+'</td>' +
         '<td>'+s.rejectedCount+'</td>' +
         '<td>'+fmtNum(s.approvedAmount)+'원</td>' +
@@ -773,8 +843,8 @@ async function refreshStats(){
         '<td>'+(s.requestCount ? '<button type="button" class="rpt-btn rpt-btn--outline rpt-btn--small act-view-site" data-site-id="'+escapeHtml(s.siteId)+'" data-site-name="'+escapeHtml(s.siteName)+'">상세</button>' : '')+'</td>' +
       '</tr>';
     }).join('');
-    document.querySelector('#statsTable tbody').innerHTML = rows || '<tr><td colspan="7">등록된 사업소가 없습니다.</td></tr>';
-    $('statsNote').textContent = '통계는 전체 신청 이력(대기·승인·반려)을 기준으로 집계합니다.';
+    document.querySelector('#statsTable tbody').innerHTML = rows || '<tr><td colspan="8">등록된 사업소가 없습니다.</td></tr>';
+    $('statsNote').textContent = '통계는 전체 신청 이력(대기·상신·승인·반려)을 기준으로 집계합니다.';
   } catch(e){
     $('statsNote').textContent = '통계를 불러오지 못했습니다: ' + e.message;
   }
@@ -814,6 +884,52 @@ async function viewSiteHistory(siteId, siteName){
   }
 }
 
+/* ================= 관리자/대표자: 월간 보고서 ================= */
+function currentMonthStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+function renderMonthlyReportHtml(result){
+  var siteRows = result.sites.map(function(s){
+    return '<tr><td>'+escapeHtml(s.siteName)+'</td><td>'+s.count+'건</td><td>'+fmtNum(s.amount)+'원</td></tr>';
+  }).join('');
+  var itemRows = result.items.map(function(it){
+    return '<tr><td>'+escapeHtml(it.item)+'</td><td>'+fmtNum(it.qty)+'</td><td>'+fmtNum(it.amount)+'원</td></tr>';
+  }).join('');
+  return '<div class="report-page">' +
+    '<h1>피복 지급 월간 보고서</h1>' +
+    '<div class="report-meta"><span>대상 월: '+escapeHtml(result.month)+'</span><span>총 승인 건수: '+result.grand.count+'건</span><span>총 승인 금액: '+fmtNum(result.grand.amount)+'원</span></div>' +
+    '<h3>사업소별 집계</h3>' +
+    '<div class="report-table-wrap"><table class="report-table"><thead><tr><th>사업소명</th><th>승인 건수</th><th>승인 금액</th></tr></thead>' +
+    '<tbody>'+(siteRows || '<tr><td colspan="3">해당 월 승인 내역이 없습니다.</td></tr>')+'</tbody></table></div>' +
+    '<h3>품목별 집계</h3>' +
+    '<div class="report-table-wrap"><table class="report-table"><thead><tr><th>품목</th><th>수량</th><th>금액</th></tr></thead>' +
+    '<tbody>'+(itemRows || '<tr><td colspan="3">해당 월 승인 내역이 없습니다.</td></tr>')+'</tbody></table></div>' +
+  '</div>';
+}
+
+async function runMonthlyReport(){
+  var month = $('monthlyReportMonth').value;
+  if(!month){ $('monthlyReportResult').innerHTML = '<p class="rpt-warn">조회할 월을 선택하세요.</p>'; return; }
+  try{
+    var result = await apiFetch('/api/admin/monthly-report?month=' + encodeURIComponent(month));
+    window._monthlyReportResult = result;
+    $('monthlyReportResult').innerHTML =
+      '<div class="rpt-stat-grid" style="margin-top:1rem;">' +
+        '<div class="rpt-stat"><div class="label">승인 건수</div><div class="value">'+result.grand.count+'건</div></div>' +
+        '<div class="rpt-stat"><div class="label">승인 금액</div><div class="value">'+fmtNum(result.grand.amount)+'원</div></div>' +
+      '</div>' +
+      '<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr><th>사업소명</th><th>승인 건수</th><th>승인 금액</th></tr></thead><tbody>' +
+      (result.sites.map(function(s){ return '<tr><td>'+escapeHtml(s.siteName)+'</td><td>'+s.count+'건</td><td>'+fmtNum(s.amount)+'원</td></tr>'; }).join('') || '<tr><td colspan="3">해당 월 승인 내역이 없습니다.</td></tr>') +
+      '</tbody></table></div>';
+  } catch(e){
+    $('monthlyReportResult').innerHTML = '<p class="rpt-warn">조회 실패: '+escapeHtml(e.message)+'</p>';
+  }
+}
+
+function printMonthlyReport(){
+  if(!window._monthlyReportResult){ alert('먼저 월을 선택해 조회해주세요.'); return; }
+  showReportPreview(renderMonthlyReportHtml(window._monthlyReportResult));
+}
+
 /* ---------- 로그인/로그아웃 ---------- */
 async function login(){
   var id = $('loginId').value.trim();
@@ -827,7 +943,7 @@ async function login(){
     });
     var data = await res.json().catch(function(){ return {}; });
     if(!res.ok) throw new Error(data.error || '로그인에 실패했습니다.');
-    setSession({ token:data.token, role:data.role, siteId:data.siteId, siteName:data.siteName });
+    setSession({ token:data.token, uid:data.uid, role:data.role, siteId:data.siteId, siteName:data.siteName });
     await showLoggedInView();
   } catch(e){
     $('loginError').textContent = e.message;
@@ -872,11 +988,15 @@ async function showLoggedInView(){
   var session = getSession();
   if(!session){ showLoginView(); return; }
   $('loginScreen').style.display = 'none';
-  if(session.role === 'admin'){
+  if(session.role === 'admin' || session.role === 'ceo'){
     $('adminPanel').style.display = 'block';
     $('siteApp').style.display = 'none';
+    $('staffRoleLabel').textContent = session.role === 'ceo' ? (session.siteName || '대표자') + ' 결재 화면' : '본사 관리자 화면';
+    $('tabAdminUsers').style.display = session.role === 'admin' ? '' : 'none';
+    $('approvalStatusFilter').value = session.role === 'ceo' ? 'submitted_to_ceo' : 'pending';
+    $('monthlyReportMonth').value = currentMonthStr();
     await refreshApprovals();
-    await refreshUsersTable();
+    if(session.role === 'admin') await refreshUsersTable();
   } else {
     $('adminPanel').style.display = 'none';
     $('siteApp').style.display = 'block';
@@ -899,6 +1019,9 @@ function init(){
   initTabs($('siteApp'));
 
   $('btnCreateUser').addEventListener('click', createUser);
+  $('btnCreateCeo').addEventListener('click', createCeo);
+  $('btnRunMonthlyReport').addEventListener('click', runMonthlyReport);
+  $('btnPrintMonthlyReport').addEventListener('click', printMonthlyReport);
   $('btnAddRow').addEventListener('click', function(){ addRow(); });
   $('btnSubmitReport').addEventListener('click', submitReport);
   $('btnDownloadTemplate').addEventListener('click', downloadTemplate);
