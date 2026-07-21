@@ -6,5 +6,13 @@
     "siteId": null,
     "siteName": null,
     "createdAt": "2026-07-21T00:52:07.938Z"
+  },
+  {
+    "id": "청라",
+    "passwordHash": "fQ4RZGuIq0-Ror1mKTy5RA.VGv6xga8svhPTDZv6Q6LDP3iwZQmFJsmeOfhUHn0EQ8",
+    "role": "user",
+    "siteId": "청라에이스하이테크시티-ywedsh",
+    "siteName": "청라에이스하이테크시티",
+    "createdAt": "2026-07-21T00:53:09.649Z"
   }
 ]
