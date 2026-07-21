@@ -1,1 +1,127 @@
-[]
+[
+  {
+    "id": 1,
+    "requestDate": "2026-07-21",
+    "rows": [
+      {
+        "name": "김두옥",
+        "position": "소장",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "황대중",
+        "position": "관리과장",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "김은경",
+        "position": "경리대리",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "유재화",
+        "position": "시설주임",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "박승식",
+        "position": "시설주임",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "도현남",
+        "position": "시설주임",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "한오용",
+        "position": "미화반장",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "최영화",
+        "position": "미화원여",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "김영숙",
+        "position": "미화원여",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "정점순",
+        "position": "미화원여",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      },
+      {
+        "name": "배애순",
+        "position": "미화원여",
+        "item": "동복잠바",
+        "spec": "L",
+        "qty": 1,
+        "unitPrice": 85000,
+        "amount": 85000,
+        "reason": "신규"
+      }
+    ],
+    "totalAmount": 935000,
+    "siteAddress": "",
+    "contact": "",
+    "status": "pending",
+    "submittedAt": "2026-07-21T00:59:23.280Z",
+    "submittedBy": "청라",
+    "reviewedAt": null,
+    "reviewedBy": null,
+    "reviewNote": ""
+  }
+]
