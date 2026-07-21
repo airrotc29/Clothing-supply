@@ -497,27 +497,6 @@ export default {
       return new Response(null, { headers: corsHeaders(env) });
     }
     try {
-      if (url.pathname === '/api/debug-env' && request.method === 'GET') {
-        // 임시 진단용 — 문제 해결 후 반드시 삭제할 것. 시크릿 값 자체는 노출하지 않음(해시만 계산).
-        var ghRes = await fetch(githubApiUrl(env, 'README.md') + '?ref=' + (env.DATA_BRANCH || 'main'), { headers: githubHeaders(env) });
-        var ghBody = await ghRes.text();
-        var tokenHash = null;
-        if (env.GITHUB_TOKEN) {
-          var digest = await crypto.subtle.digest('SHA-256', utf8ToBytes(env.GITHUB_TOKEN));
-          tokenHash = Array.from(new Uint8Array(digest)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-        }
-        return jsonResponse(env, {
-          GITHUB_OWNER: JSON.stringify(env.GITHUB_OWNER || null),
-          GITHUB_REPO: JSON.stringify(env.GITHUB_REPO || null),
-          DATA_BRANCH: JSON.stringify(env.DATA_BRANCH || null),
-          ALLOWED_ORIGIN: JSON.stringify(env.ALLOWED_ORIGIN || null),
-          GITHUB_TOKEN_length: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.length : 0,
-          GITHUB_TOKEN_sha256: tokenHash,
-          SESSION_SECRET_present: !!env.SESSION_SECRET,
-          githubTestStatus: ghRes.status,
-          githubTestBody: ghBody.slice(0, 300),
-        });
-      }
       if (url.pathname === '/api/login' && request.method === 'POST') return await handleLogin(env, request);
       if (url.pathname === '/api/bootstrap-admin' && request.method === 'POST') return await handleBootstrapAdmin(env, request);
       if (url.pathname === '/api/admin/users' && request.method === 'GET') return await handleListUsers(env, request);
